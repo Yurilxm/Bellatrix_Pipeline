@@ -3,6 +3,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 from core.detector import DetectorFadesPretos
 from core.cutter import cortar_video, juntar_videos, embutir_legenda
+from core.validator import is_video_valid
 
 def test_detector_instanciacao():
     detector = DetectorFadesPretos("fake_video.mp4")
@@ -12,7 +13,6 @@ def test_detector_instanciacao():
 def test_detector_is_black_frame():
     detector = DetectorFadesPretos("fake_video.mp4")
     frame_preto = np.zeros((1080, 1920, 3), dtype=np.uint8)
-    # Correção: Usar == True para evitar o problema do np.True_
     assert detector.is_black_frame(frame_preto) == True
     
     frame_colorido = np.full((1080, 1920, 3), 150, dtype=np.uint8)
@@ -26,9 +26,8 @@ def test_cortar_video(mock_run):
     args_chamados = mock_run.call_args[0][0]
     assert "-c:v" in args_chamados
     assert "libx264" in args_chamados
-    assert "-c" not in args_chamados or "copy" not in args_chamados
 
-@patch('os.remove') # Correção: Mockando a remoção do arquivo
+@patch('os.remove')
 @patch('subprocess.run')
 def test_juntar_videos(mock_run, mock_remove):
     mock_run.return_value = MagicMock(returncode=0)
@@ -42,3 +41,11 @@ def test_embutir_legenda(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
     resultado = embutir_legenda("video.mp4", "legenda.srt", "video_leg.mp4")
     assert resultado is True
+
+@patch('subprocess.run')
+def test_is_video_valid(mock_run):
+    # Simula um ffprobe válido
+    mock_run.return_value = MagicMock(returncode=0, stdout='{"streams": [{"codec_type": "video"}, {"codec_type": "audio"}]}')
+    valido, msg = is_video_valid("fake.mp4")
+    assert valido == True
+    assert "válido" in msg

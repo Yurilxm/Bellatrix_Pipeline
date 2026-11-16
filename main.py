@@ -3,11 +3,21 @@ import argparse
 import shutil
 from core.detector import DetectorFadesPretos
 from core.cutter import cortar_video, juntar_videos, embutir_legenda
+from core.validator import is_video_valid
 from ai.transcriber import transcrever_e_gerar_srt
 from ai.analyzer import analisar_e_selecionar
 
 def processar_video(input_path, output_format="mp4", duracao_alvo=180, gerar_legenda=True):
     print(f"--- Iniciando Pipeline para: {input_path} ---")
+    
+    # 0. Validação (Sirius)
+    print("0. Validando vídeo...")
+    valido, mensagem = is_video_valid(input_path)
+    if not valido:
+        print(f"   Vídeo inválido: {mensagem}")
+        return
+    print(f"   {mensagem}")
+    
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     temp_dir = "temp_cortes"
     os.makedirs(temp_dir, exist_ok=True)
@@ -51,7 +61,7 @@ def processar_video(input_path, output_format="mp4", duracao_alvo=180, gerar_leg
         print("5. Aplicando legendas no vídeo final...")
         video_com_legenda = f"{base_name}_legendado.{output_format}"
         embutir_legenda(video_final, srt_temp, video_com_legenda)
-        os.remove(video_final) # Remove o sem legenda
+        os.remove(video_final)
         video_final = video_com_legenda
 
     # Limpeza
