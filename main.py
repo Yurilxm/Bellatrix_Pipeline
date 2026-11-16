@@ -1,4 +1,10 @@
-﻿import os
+﻿import sys
+import os
+
+# Força a saída do terminal a usar UTF-8 (corrige os emojis no Windows)
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 import argparse
 import shutil
 from core.detector import DetectorFadesPretos
@@ -16,7 +22,6 @@ from rich_argparse import RichHelpFormatter
 console = Console()
 
 def processar_video(input_path, output_format="mp4", duracao_alvo=180, gerar_legenda=True):
-    # (Mesma lógica de processamento de antes, mas usando console.print para ficar bonito)
     console.print(f"\n[bold cyan]🚀 Iniciando Pipeline para:[/bold cyan] [white]{input_path}[/white]")
     
     # 0. Validação
@@ -67,7 +72,7 @@ def processar_video(input_path, output_format="mp4", duracao_alvo=180, gerar_leg
         shutil.move(cortes_gerados[0], video_final)
     console.print("[green]✅ Montagem concluída.[/green]")
 
-    # 5. Legendas (Burn-in)
+    # 5. Legendas
     if gerar_legenda:
         console.print("[yellow]⏳ [5/5] Aplicando legendas no vídeo final...[/yellow]")
         video_com_legenda = video_final.replace(f".{output_format}", f"_legendado.{output_format}")
@@ -76,9 +81,7 @@ def processar_video(input_path, output_format="mp4", duracao_alvo=180, gerar_leg
         video_final = video_com_legenda
         console.print("[green]✅ Legendas aplicadas.[/green]")
 
-    # Limpeza
     shutil.rmtree(temp_dir)
-    
     console.print(f"\n[bold green]🎉 Pipeline finalizada![/bold green] Arquivo salvo como: [cyan]{video_final}[/cyan]\n")
 
 def show_banner():
@@ -90,14 +93,12 @@ def show_banner():
     console.print(Panel.fit(banner, border_style="cyan"))
 
 if __name__ == "__main__":
-    # Cria o parser usando o RichHelpFormatter
     parser = argparse.ArgumentParser(
         description="Microserviço de Edição Automatizada de Vídeo para TV.",
         epilog="Exemplo:\n  python main.py -i video.mp4 -d 180 -o mp4",
         formatter_class=RichHelpFormatter
     )
     
-    # Agrupando os argumentos para ficar organizado (como no Jarvis)
     group_input = parser.add_argument_group("📥 Entrada")
     group_input.add_argument("-i", "--input", required=True, help="Caminho completo do vídeo de entrada.")
 
