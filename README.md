@@ -5,8 +5,8 @@ Este projeto é um microserviço de edição automatizada de vídeo para TV, uni
 ## 🚀 Funcionalidades
 - **Validação (Sirius):** Verifica integridade do vídeo via \fprobe\ (gaps, codecs, streams) antes de processar.
 - **Governança (Bellatrix):** Sanitiza nomes de arquivos, valida FPS (29.97) e renomeia no padrão \CM{codigo}_{nome}\.
-- **Transcrição (Whisper):** Usa \pywhispercpp\ para transcrever o áudio localmente (sem depender de GPUs ou CTranslate2).
-- **Decisão Editorial (LLM):** Integração com Ollama/LLaMA para escolher os melhores trechos (com fallback seguro).
+- **Transcrição (Whisper):** Usa \pywhispercpp\ para transcrever o áudio localmente.
+- **Decisão Editorial (LLM):** Integração com Ollama/LLaMA para escolher os melhores trechos.
 - **Corte e Montagem (FFmpeg/Nano):** Corta com ajuste de frames e suporta formatos web (mp4) e broadcast (mxf).
 - **Legendas:** Embuti legendas no vídeo final.
 
@@ -22,9 +22,28 @@ bash setup.sh
 \
 ## 💻 Como Usar (CLI)
 
-Para processar um vídeo localmente:
+Para ver o menu de ajuda e todas as opções:
 \\ash
-python main.py -i caminho/do/video.mp4 -d 180 -o mp4
+python main.py -h
+\
+### Argumentos disponíveis:
+
+| Argumento | Obrigatório | Padrão | Descrição |
+| :--- | :---: | :--- | :--- |
+| \-i\ ou \--input\ | **Sim** | - | Caminho completo do vídeo de entrada. |
+| \-o\ ou \--output_format\ | Não | \mp4\ | Formato de saída (\mp4\, \mxf\, \mov\, \mkv\). |
+| \-d\ ou \--duracao\ | Não | 80\ | Duração alvo do vídeo final (em segundos). |
+| \--no-subs\ | Não | \False\ | Se ativado, não gera legendas no vídeo final. |
+
+### Exemplos Práticos:
+
+**1. Editar um vídeo para Web (MP4):**
+\\ash
+python main.py -i C:\videos\reportagem_bruta.mp4 -d 180 -o mp4
+\
+**2. Editar um vídeo para TV (MXF) e sem legenda:**
+\\ash
+python main.py -i C:\videos\materia.MXF -d 120 -o mxf --no-subs
 \
 ## 🌐 Como Usar (Microserviço API)
 
