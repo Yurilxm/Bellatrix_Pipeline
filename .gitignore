@@ -4,3 +4,5 @@
 output/
 *.mp4
 *.srt
+venv/
+.pytest_cache/
