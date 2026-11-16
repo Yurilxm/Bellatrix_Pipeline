@@ -22,7 +22,7 @@ bash setup.sh
 \
 ## 💻 Como Usar (CLI)
 
-Para ver o menu de ajuda e todas as opções:
+O projeto possui uma interface de linha de comando (CLI) moderna, com cores e organização visual. Para ver o menu de ajuda e todas as opções:
 \\ash
 python main.py -h
 \
