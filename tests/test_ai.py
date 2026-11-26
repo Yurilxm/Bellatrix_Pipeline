@@ -13,8 +13,8 @@ def test_extrair_audio(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
     extrair_audio("video.mp4", "audio.wav")
     args_chamados = mock_run.call_args[0][0]
-    assert "-vn" in args_chamados # Garante que o vídeo foi removido
-    assert "pcm_s16le" in args_chamados # Garante formato de áudio do Whisper
+    assert "-vn" in args_chamados
+    assert "pcm_s16le" in args_chamados
 
 @patch('requests.post')
 def test_analyzer_fallback(mock_post):
@@ -26,7 +26,7 @@ def test_analyzer_fallback(mock_post):
         blocos = [(0.0, 10.0), (20.0, 30.0), (40.0, 50.0), (60.0, 70.0)]
         resultado = analisar_e_selecionar(blocos, "fake.srt", 180)
         
-        # Se a API falhar, ele deve retornar os 3 primeiros blocos como fallback
-        assert len(resultado) == 3
-        assert resultado[0]["start"] == 0.0
-        assert resultado[1]["start"] == 20.0
+        # Correção: Agora o fallback retorna um dicionário com 3 opções
+        assert "opcoes" in resultado
+        assert len(resultado["opcoes"]) == 3
+        assert resultado["opcoes"][0]["id"] == 1

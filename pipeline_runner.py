@@ -7,16 +7,14 @@ from core.governance import gerar_nome_final
 from ai.transcriber import transcrever_e_gerar_srt
 from ai.analyzer import analisar_e_selecionar
 
-def executar_pipeline(input_path, duracao_alvo=180, output_format="mp4"):
-    # 0. Validação (Sirius)
+def executar_pipeline(input_path, duracao_alvo=180, output_format="mxf", texto_materia="", prompt_customizado=""):
     valido, mensagem = is_video_valid(input_path)
     if not valido:
         raise ValueError(f"Vídeo inválido: {mensagem}")
     
-    # Verificação de frame rate (Bellatrix)
     fps = get_frame_rate(input_path)
     if fps and fps != 29.97:
-        raise ValueError(f"Frame rate {fps} não suportado. Use vídeos de 29.97 fps.")
+        raise ValueError(f"Frame rate {fps} não suportado.")
     
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     temp_dir = "temp_cortes"
@@ -30,23 +28,33 @@ def executar_pipeline(input_path, duracao_alvo=180, output_format="mp4"):
     srt_temp = os.path.join(temp_dir, f"{base_name}_temp.srt")
     transcrever_e_gerar_srt(input_path, srt_temp)
     
-    trechos = analisar_e_selecionar(blocos, srt_temp, duracao_alvo)
+    # O LLM agora retorna um dicionário com 3 opções
+    resposta_llm = analisar_e_selecionar(blocos, srt_temp, texto_materia, duracao_alvo, prompt_customizado)
+    opcoes = resposta_llm.get("opcoes", [])
     
-    cortes = []
-    for i, trecho in enumerate(trechos):
-        output_corte = os.path.join(temp_dir, f"corte_{i}.{output_format}")
-        cortar_video(input_path, output_corte, trecho["start"], trecho["end"], output_format)
-        cortes.append(output_corte)
+    arquivos_gerados = []
     
-    video_final = gerar_nome_final(input_path, os.getcwd())
-    if len(cortes) > 1:
-        juntar_videos(cortes, video_final)
-    else:
-        shutil.move(cortes[0], video_final)
-    
-    video_legendado = video_final.replace(f".{output_format}", f"_legendado.{output_format}")
-    embutir_legenda(video_final, srt_temp, video_legendado)
-    os.remove(video_final)
-    
+    for opcao in opcoes:
+        opcao_id = opcao.get("id")
+        nome_opcao = opcao.get("nome", f"Opcao_{opcao_id}")
+        cortes = opcao.get("cortes", [])
+        
+        cortes_gerados = []
+        for i, trecho in enumerate(cortes):
+            output_corte = os.path.join(temp_dir, f"op{opcao_id}_corte_{i}.{output_format}")
+            cortar_video(input_path, output_corte, trecho["start"], trecho["end"], output_format)
+            cortes_gerados.append(output_corte)
+            
+        # Gera o nome do arquivo com o ID da opção
+        video_final = gerar_nome_final(input_path, os.getcwd(), assunto=f"OPCAO{opcao_id}_{nome_opcao}")
+        
+        if len(cortes_gerados) > 1:
+            juntar_videos(cortes_gerados, video_final, output_format)
+        elif len(cortes_gerados) == 1:
+            shutil.move(cortes_gerados[0], video_final)
+            
+        if os.path.exists(video_final):
+            arquivos_gerados.append(video_final)
+
     shutil.rmtree(temp_dir)
-    return video_legendado
+    return arquivos_gerados
