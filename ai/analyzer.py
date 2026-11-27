@@ -13,46 +13,67 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
         
     instrucao_extra = ""
     if prompt_customizado:
-        instrucao_extra = f"\nATENÇÃO DO EDITOR: Gere as opções focando especificamente em: {prompt_customizado}"
+        instrucao_extra = f"""
+ATENÇÃO DO EDITOR: Gere as opções focando especificamente em: {prompt_customizado}
+Isso substitui as 3 opções padrão. Gere 3 variações dentro deste foco específico."""
 
+    # Alinhamento com IRIS: Anti-alucinação, vocabulário editorial, coerência
     prompt = f"""
-    Você é um editor de vídeo sênior de uma emissora de TV.
-    Nós temos o TEXTO DA MATÉRIA (o que precisa ser dito) e a TRANSCRIÇÃO DO BRUTO (o que foi gravado).
-    
-    CONTEXTO EDITORIAL: {contexto_editorial}
-    
-    TEXTO DA MATÉRIA:
-    {texto_materia}
-    
-    TRANSCRIÇÃO DO BRUTO:
-    {transcricao_completa}
-    
-    BLOCOS DISPONÍVEIS:
-    {blocos}
-    
-    Sua tarefa: Criar 3 OPÇÕES DIFERENTES de edição para um vídeo de aproximadamente {duracao_alvo} segundos.
-    - Opção 1: Foco em Ação e Movimento.
-    - Opção 2: Foco em Emoção e Sonoras.
-    - Opção 3: Foco na Narrativa/Locução.
-    {instrucao_extra}
-    
-    Regras:
-    1. Priorize as falas que realmente importam (voz A1).
-    2. Mantenha a coerência jornalística (não corte no meio de uma frase).
-    3. A SOMA dos cortes de cada opção deve ser próxima de {duracao_alvo} segundos.
-    
-    Retorne APENAS um JSON válido com esta estrutura:
-    {{
-      "opcoes": [
-        {{"id": 1, "nome": "Ação", "cortes": [{{"start": 10.0, "end": 20.0}}]}},
-        {{"id": 2, "nome": "Emoção", "cortes": [{{"start": 30.0, "end": 45.0}}]}},
-        {{"id": 3, "nome": "Narrativa", "cortes": [{{"start": 50.0, "end": 70.0}}]}}
-      ]
-    }}
-    """
+Você é um editor de vídeo sênior de uma emissora de TV regional (InterTV). Está alinhado ao sistema IRIS de análise jornalística.
+
+REGRAS OBRIGATÓRIAS (guardrails do IRIS):
+1. NÃO INFIRA o que não está explícito na transcrição ou no texto da matéria.
+2. Separe FATOS OBJETIVOS (o que foi dito) de CARGA EMOCIONAL (tom do depoimento).
+3. NÃO invente nomes, números, locais ou declarações.
+4. Respeite a coerência entre a gravidade do fato e o tom da edição (não use cortes alegres para tragédias).
+5. NUNCA proponha cortar depoimentos de vítimas, menores de idade ou pessoas que não podem falar.
+6. Priorize as falas que realmente importam para a matéria (voz A1 — locução do repórter e sonoras).
+
+CONTEXTO EDITORIAL: {contexto_editorial}
+TEXTO DA MATÉRIA (o que o repórter quer contar):
+{texto_materia}
+
+TRANSCRIÇÃO DO BRUTO (o que foi gravado, com timestamps):
+{transcricao_completa}
+
+BLOCOS DE VÍDEO DISPONÍVEIS (duração e fades):
+{blocos}
+
+SUA TAREFA: Gerar 3 OPÇÕES DE EDIÇÃO DIFERENTES, alinhadas aos ângulos editoriais do IRIS, cada uma com aproximadamente {duracao_alvo} segundos.
+
+OPÇÃO 1 — INFORMATIVO (fatos diretos, objetividade):
+- Foque nas informações factuais, no que aconteceu, onde, quando, quem.
+- Ritmo de telejornal: claro, direto, sem sensacionalismo.
+- Priorize a locução do repórter (off) e sonoras que confirmam fatos.
+
+OPÇÃO 2 — HUMANIZADO (pessoas, emoção, histórias humanas):
+- Foque nos depoimentos que trazem sentimento (sent_*: solidariedade, esperança, dor, superação).
+- Mantenha a coerência: se a matéria é sobre tragédia, o tom é sóbrio (não celebratório).
+- Priorize sonoras de pessoas afetadas, moradores, vítimas (com cuidado ético).
+
+OPÇÃO 3 — DINÂMICO (ação, movimento, ritmo):
+- Foque em cenas com movimento, ação, cortes mais rápidos.
+- Ideal para matérias de esporte, operações policiais, resgates, obras.
+- Priorize trechos com ação visual e sonoras curtas e impactantes.
+{instrucao_extra}
+
+FORMATO DE RETORNO (APENAS JSON válido, sem markdown):
+{{
+  "opcoes": [
+    {{"id": 1, "nome": "Informativo", "cortes": [{{"start": 10.0, "end": 25.0}}, {{"start": 45.0, "end": 60.0}}]}},
+    {{"id": 2, "nome": "Humanizado", "cortes": [{{"start": 30.0, "end": 50.0}}]}},
+    {{"id": 3, "nome": "Dinâmico", "cortes": [{{"start": 5.0, "end": 15.0}}, {{"start": 70.0, "end": 85.0}}]}}
+  ]
+}}
+
+Regras finais:
+- A SOMA dos cortes de cada opção deve ser próxima de {duracao_alvo} segundos.
+- Não corte no meio de uma frase.
+- Respeite os limites dos blocos disponíveis.
+"""
     
     api_url = os.getenv("LLM_API_URL", "http://localhost:11434/api/chat")
-    model = os.getenv("LLM_MODEL", "llama3")
+    model = os.getenv("LLM_MODEL", "llama3.1:8b")
     
     if "ollama" in api_url:
         payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False}
@@ -71,7 +92,6 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
         content = content.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(content)
         
-        # Se o LLM retornar opções, mas todas vazias, força o fallback
         if not parsed.get("opcoes") or all(len(o.get("cortes", [])) == 0 for o in parsed["opcoes"]):
             raise ValueError("LLM retornou opções sem cortes válidos.")
             
@@ -80,19 +100,18 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
         print(f"Erro ao chamar o LLM ou resposta inválida: {e}")
         print("Fallback: Gerando 3 opções baseadas no tempo alvo.")
         
-        # Fallback Inteligente: Pega blocos até atingir o tempo alvo
         opcoes_fallback = []
+        nomes_fallback = ["Informativo", "Humanizado", "Dinâmico"]
         for i in range(1, 4):
             tempo_acumulado = 0
             cortes = []
             for b in blocos:
                 duracao_bloco = b[1] - b[0]
-                # Adiciona o bloco se couber OU se for o primeiro (para não ficar vazio)
                 if tempo_acumulado + duracao_bloco <= duracao_alvo or not cortes:
                     cortes.append({"start": b[0], "end": b[1]})
                     tempo_acumulado += duracao_bloco
                 if tempo_acumulado >= duracao_alvo * 0.9:
                     break
-            opcoes_fallback.append({"id": i, "nome": f"Fallback {i}", "cortes": cortes})
+            opcoes_fallback.append({"id": i, "nome": nomes_fallback[i-1], "cortes": cortes})
             
         return {"opcoes": opcoes_fallback}

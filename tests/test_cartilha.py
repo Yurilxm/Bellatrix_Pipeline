@@ -43,7 +43,7 @@ def test_cartilha_llm_prompt_3_opcoes(mock_open, mock_post):
     payload = mock_post.call_args[1]['json']
     prompt = payload['messages'][0]['content']
     
-    assert "3 OPÇÕES DIFERENTES" in prompt
+    assert "3 OPÇÕES DE EDIÇÃO DIFERENTES" in prompt
     assert len(resultado["opcoes"]) == 3
 
 # Correção do teste fraco da API
