@@ -22,17 +22,17 @@ def sanitize_filename(filename):
         logger.error(f"Erro ao sanitizar nome: {e}")
         return filename
 
-def gerar_nome_final(source_path, output_dir, assunto="MATERIA"):
-    """Gera o nome final no padrão da Cartilha: IN2_ED_DDMMYY_ASSUNTO"""
+def gerar_nome_final(source_path, output_dir, assunto="MATERIA", plataforma="tv"):
     base_name = os.path.splitext(os.path.basename(source_path))[0]
     data_hoje = datetime.now().strftime("%d%m%y")
-    
-    # Extrai a tag (ex: PET) do nome original se existir
     tag = base_name.split('_')[0] if '_' in base_name else "VT"
     
-    new_base_name = f"IN2_ED_{data_hoje}_{tag}_{assunto}"
+    ext = "mxf" if plataforma.lower() == "tv" else "mp4"
+    prefixo = "IN2_ED" if plataforma.lower() == "tv" else "WEB"
+    
+    new_base_name = f"{prefixo}_{data_hoje}_{tag}_{assunto}"
     sanitized = sanitize_filename(new_base_name)
-    return os.path.join(output_dir, f"{sanitized}.mxf")
+    return os.path.join(output_dir, f"{sanitized}.{ext}")
 
 def calcular_ajuste_frames(fps=29.97):
     return {

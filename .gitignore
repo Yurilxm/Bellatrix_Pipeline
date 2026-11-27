@@ -4,5 +4,7 @@
 output/
 *.mp4
 *.srt
+*.mxf
 venv/
 .pytest_cache/
+review_findings.json

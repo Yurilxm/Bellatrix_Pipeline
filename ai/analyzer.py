@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, prompt_customizado=""):
+def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, prompt_customizado="", contexto_editorial=""):
     print(f"Lendo transcrição e enviando para o LLM (Gerando 3 Opções)...")
     
     with open(srt_path, "r", encoding="utf-8") as f:
@@ -19,6 +19,8 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
     Você é um editor de vídeo sênior de uma emissora de TV.
     Nós temos o TEXTO DA MATÉRIA (o que precisa ser dito) e a TRANSCRIÇÃO DO BRUTO (o que foi gravado).
     
+    CONTEXTO EDITORIAL: {contexto_editorial}
+    
     TEXTO DA MATÉRIA:
     {texto_materia}
     
@@ -29,16 +31,17 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
     {blocos}
     
     Sua tarefa: Criar 3 OPÇÕES DIFERENTES de edição para um vídeo de aproximadamente {duracao_alvo} segundos.
-    - Opção 1: Foco em Ação e Movimento (Cortes mais dinâmicos).
-    - Opção 2: Foco em Emoção e Sonoras (Mantenha os depoimentos mais emotivos).
-    - Opção 3: Foco na Narrativa/Locução (Priorize o texto e a cobertura).
+    - Opção 1: Foco em Ação e Movimento.
+    - Opção 2: Foco em Emoção e Sonoras.
+    - Opção 3: Foco na Narrativa/Locução.
     {instrucao_extra}
     
-    Regras (Cartilha de Edição):
+    Regras:
     1. Priorize as falas que realmente importam (voz A1).
     2. Mantenha a coerência jornalística (não corte no meio de uma frase).
+    3. A SOMA dos cortes de cada opção deve ser próxima de {duracao_alvo} segundos.
     
-    Retorne APENAS um JSON válido (sem formatação markdown) com esta estrutura exata:
+    Retorne APENAS um JSON válido com esta estrutura:
     {{
       "opcoes": [
         {{"id": 1, "nome": "Ação", "cortes": [{{"start": 10.0, "end": 20.0}}]}},
@@ -61,7 +64,8 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
         headers["Authorization"] = f"Bearer {os.getenv('OPENAI_API_KEY')}"
         
     try:
-        response = requests.post(api_url, json=payload, headers=headers)
+        # Timeout de 5 minutos para LLMs locais
+        response = requests.post(api_url, json=payload, headers=headers, timeout=300)
         response.raise_for_status()
         data = response.json()
         content = data.get("message", {}).get("content") if "ollama" in api_url else data.get("choices")[0].get("message", {}).get("content")
@@ -69,10 +73,20 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
         return json.loads(content)
     except Exception as e:
         print(f"Erro ao chamar o LLM: {e}")
-        print("Fallback: Gerando 3 opções com os primeiros blocos.")
-        # Fallback de segurança para não quebrar a pipeline
-        return {"opcoes": [
-            {"id": 1, "nome": "Fallback A", "cortes": [{"start": b[0], "end": b[1]} for b in blocos[:2]]},
-            {"id": 2, "nome": "Fallback B", "cortes": [{"start": b[0], "end": b[1]} for b in blocos[1:3]]},
-            {"id": 3, "nome": "Fallback C", "cortes": [{"start": b[0], "end": b[1]} for b in blocos[2:4]]}
-        ]}
+        print("Fallback: Gerando 3 opções baseadas no tempo alvo.")
+        
+        # Fallback Inteligente: Pega blocos até atingir o tempo alvo
+        opcoes_fallback = []
+        for i in range(1, 4):
+            tempo_acumulado = 0
+            cortes = []
+            for b in blocos:
+                duracao_bloco = b[1] - b[0]
+                if tempo_acumulado + duracao_bloco <= duracao_alvo:
+                    cortes.append({"start": b[0], "end": b[1]})
+                    tempo_acumulado += duracao_bloco
+                if tempo_acumulado >= duracao_alvo * 0.9:
+                    break
+            opcoes_fallback.append({"id": i, "nome": f"Fallback {i}", "cortes": cortes})
+            
+        return {"opcoes": opcoes_fallback}

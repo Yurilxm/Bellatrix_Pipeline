@@ -19,9 +19,10 @@ def test_detector_is_black_frame():
     assert detector.is_black_frame(frame_colorido) == False
 
 @patch('subprocess.run')
-def test_cortar_video(mock_run):
+def test_cortar_video_web(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
-    resultado = cortar_video("input.mp4", "output.mp4", 10.0, 20.0)
+    # Forçando plataforma="web" para testar o codec libx264
+    resultado = cortar_video("input.mp4", "output.mp4", 10.0, 20.0, plataforma="web")
     assert resultado is True
     args_chamados = mock_run.call_args[0][0]
     assert "-c:v" in args_chamados
@@ -44,7 +45,6 @@ def test_embutir_legenda(mock_run):
 
 @patch('subprocess.run')
 def test_is_video_valid(mock_run):
-    # Simula um ffprobe válido
     mock_run.return_value = MagicMock(returncode=0, stdout='{"streams": [{"codec_type": "video"}, {"codec_type": "audio"}]}')
     valido, msg = is_video_valid("fake.mp4")
     assert valido == True

@@ -20,16 +20,15 @@ def get_frame_rate(video_path):
         num, den = result.stdout.strip().split('/')
         return round(float(num) / float(den), 2)
     except Exception:
-        return None
+        return 29.97
 
-def cortar_video(input_path, output_path, start_time, end_time, output_format="mp4"):
-    fps = get_frame_rate(input_path) or 29.97
-    
-    # Correção Cartilha: Pula 4 frames no início e remove 3 frames no fim (evita o preto)
+def cortar_video(input_path, output_path, start_time, end_time, plataforma="tv"):
+    fps = get_frame_rate(input_path)
+    # Ajuste da Cartilha (4 no início, 3 no fim)
     start_adjusted = max(0, start_time + (4 / fps))
     end_adjusted = end_time - (3 / fps)
     
-    if output_format.lower() == "mxf":
+    if plataforma.lower() == "tv":
         # Padrão Broadcast: XDCAM HD 50 NTSC 60i
         command = [
             'ffmpeg', '-y', '-ss', f"{start_adjusted:.3f}", '-to', f"{end_adjusted:.3f}",
@@ -41,7 +40,7 @@ def cortar_video(input_path, output_path, start_time, end_time, output_format="m
             output_path
         ]
     else:
-        # Formato Web (mp4) com normalização de áudio (A1 entre -12dB e -6dB)
+        # Formato Web (G1, Instagram, YouTube)
         command = [
             'ffmpeg', '-y', '-ss', f"{start_adjusted:.3f}", '-to', f"{end_adjusted:.3f}",
             '-i', input_path,
@@ -58,12 +57,12 @@ def cortar_video(input_path, output_path, start_time, end_time, output_format="m
         logger.error(f"Erro ao cortar vídeo: {e}")
         return False
 
-def juntar_videos(lista_videos, output_path, output_format="mp4"):
+def juntar_videos(lista_videos, output_path, plataforma="tv"):
     with open("concat_list.txt", "w") as f:
         for video in lista_videos:
             f.write(f"file '{video}'\n")
             
-    if output_format.lower() == "mxf":
+    if plataforma.lower() == "tv":
         command = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', '-c', 'copy', '-f', 'mxf', output_path]
     else:
         command = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', '-c', 'copy', output_path]

@@ -1,0 +1,175 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bellatrix Pipeline - Teste</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+        .glass-input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                ⚡ Bellatrix Pipeline
+            </h1>
+            <p class="text-gray-400 mt-2">Interface de Teste - Geração de 3 Opções com IA</p>
+        </header>
+
+        <!-- Formulário de Input -->
+        <div id="form-section" class="glass p-8 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Vídeo Bruto</label>
+                    <input type="file" id="videoFile" accept="video/*" class="w-full glass-input p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Duração Alvo (segundos)</label>
+                    <input type="number" id="duracao" value="60" class="w-full glass-input p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Texto da Matéria (Roteiro)</label>
+                    <textarea id="textoMateria" rows="4" class="w-full glass-input p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Cole aqui o texto que o repórter vai narrar..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Plataforma</label>
+                    <select id="plataforma" class="w-full glass-input p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <option value="web">Web (G1 / Instagram / YouTube)</option>
+                        <option value="tv">TV (MXF XDCAM)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Editoria / Programa</label>
+                    <input type="text" id="editoria" placeholder="Ex: Jornal Hoje / Cidades" class="w-full glass-input p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+            </div>
+            <button onclick="gerarOpcoes()" id="btnGerar" class="mt-6 w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-cyan-500/30">
+                Gerar 3 Opções com IA
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading-section" class="hidden text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mb-4"></div>
+            <p class="text-cyan-400">A IA está processando o vídeo... (Isso pode levar alguns minutos)</p>
+        </div>
+
+        <!-- Resultados -->
+        <div id="results-section" class="hidden">
+            <h2 class="text-2xl font-bold mb-6 text-cyan-400">Opções Geradas</h2>
+            <div id="video-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Cards de vídeo injetados via JS -->
+            </div>
+
+            <!-- Refazer -->
+            <div class="glass p-6 border border-yellow-500/30">
+                <h3 class="text-xl font-bold text-yellow-400 mb-4">Não gostou de nenhuma?</h3>
+                <p class="text-gray-400 mb-4 text-sm">Diga à IA o que você quer mudar e ela gerará novas opções.</p>
+                <div class="flex gap-4">
+                    <input type="text" id="promptRefazer" placeholder="Ex: Foque mais no depoimento da dona Maria..." class="flex-1 glass-input p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                    <button onclick="refazerOpcoes()" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-6 rounded-lg transition-all">
+                        Gerar Novas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000/processar";
+
+        async function chamarAPI(promptCustom = "") {
+            const fileInput = document.getElementById('videoFile');
+            if (!fileInput.files.length) {
+                alert("Por favor, selecione um vídeo primeiro.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("duracao_alvo", document.getElementById('duracao').value);
+            formData.append("texto_materia", document.getElementById('textoMateria').value);
+            formData.append("plataforma", document.getElementById('plataforma').value);
+            formData.append("editoria", document.getElementById('editoria').value);
+            formData.append("prompt_customizado", promptCustom);
+
+            document.getElementById('form-section').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('loading-section').classList.remove('hidden');
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error("Erro na API: " + response.statusText);
+                }
+
+                const data = await response.json();
+                renderizarVideos(data.arquivos);
+            } catch (error) {
+                alert("Erro: " + error.message);
+            } finally {
+                document.getElementById('form-section').classList.remove('opacity-50', 'pointer-events-none');
+                document.getElementById('loading-section').classList.add('hidden');
+            }
+        }
+
+        function renderizarVideos(urls) {
+            const grid = document.getElementById('video-grid');
+            grid.innerHTML = "";
+            
+            const nomes = ["Opção 1 (Ação)", "Opção 2 (Emoção)", "Opção 3 (Narrativa)"];
+
+            urls.forEach((url, index) => {
+                const card = document.createElement('div');
+                card.className = "glass p-4 flex flex-col";
+                card.innerHTML = `
+                    <h3 class="font-bold text-cyan-400 mb-2">${nomes[index] || 'Opção ' + (index+1)}</h3>
+                    <video src="${url}" controls class="w-full rounded-lg mb-4 bg-black aspect-video"></video>
+                    <a href="${url}" download class="mt-auto text-center bg-white/10 hover:bg-white/20 py-2 rounded transition">
+                        Baixar Vídeo
+                    </a>
+                `;
+                grid.appendChild(card);
+            });
+
+            document.getElementById('results-section').classList.remove('hidden');
+        }
+
+        function gerarOpcoes() {
+            chamarAPI("");
+        }
+
+        function refazerOpcoes() {
+            const prompt = document.getElementById('promptRefazer').value;
+            if (!prompt) {
+                alert("Digite o que você quer mudar.");
+                return;
+            }
+            chamarAPI(prompt);
+        }
+    </script>
+</body>
+</html>

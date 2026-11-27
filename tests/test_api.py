@@ -9,13 +9,13 @@ def test_health_check():
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
-# Teste de integração do endpoint /processar (mockando a pipeline)
 def test_processar_video(mocker):
-    mocker.patch('api.main.executar_pipeline', return_value="video_final.mp4")
+    # Correção: Mock agora retorna uma lista de 3 arquivos
+    mocker.patch('api.main.executar_pipeline', return_value=["op1.mxf", "op2.mxf", "op3.mxf"])
     response = client.post(
         "/processar",
-        files={"file": ("test.mp4", b"fake video content", "video/mp4")},
-        data={"duracao_alvo": 30, "formato": "mp4"}
+        files={"file": ("test.mxf", b"fake video content", "video/mp4")},
+        data={"duracao_alvo": 180, "plataforma": "tv", "texto_materia": "Texto"}
     )
     assert response.status_code == 200
-    assert "video_final.mp4" in response.text
+    assert len(response.json()["arquivos"]) == 3

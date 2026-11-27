@@ -17,18 +17,19 @@ def transcrever_e_gerar_srt(video_path, output_srt):
     audio_temp = "audio_temp.wav"
     extrair_audio(video_path, audio_temp)
     
-    print("Carregando modelo Whisper (pywhispercpp)...")
-    # "base" é rápido e leve. Para melhor precisão, use "medium" ou "large-v3"
-    model = Model("base", print_realtime=False, print_progress=False)
+    # Usa modelo medium se não especificado (melhor para PT-BR)
+    model_name = os.getenv("WHISPER_MODEL", "medium")
+    print(f"Carregando modelo Whisper ({model_name})...")
+    
+    model = Model(model_name, print_realtime=False, print_progress=False)
     segments = model.transcribe(audio_temp)
     
     with open(output_srt, "w", encoding="utf-8") as f:
         for i, segment in enumerate(segments, start=1):
-            start = segment.t0 / 100.0
-            end = segment.t1 / 100.0
-            f.write(f"{i}\n{formatar_tempo_srt(start)} --> {formatar_tempo_srt(end)}\n{segment.text.strip()}\n\n")
+            start = formatar_tempo_srt(segment.t0 / 100.0)
+            end = formatar_tempo_srt(segment.t1 / 100.0)
+            f.write(f"{i}\n{start} --> {end}\n{segment.text.strip()}\n\n")
             
     if os.path.exists(audio_temp):
         os.remove(audio_temp)
-    
     return output_srt
