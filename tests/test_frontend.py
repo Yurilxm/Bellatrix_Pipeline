@@ -65,4 +65,5 @@ def test_frontend_tem_download_links():
     response = client.get("/")
     html = response.text
     assert 'download' in html
-    assert 'Baixar Vídeo' in html
+    # O novo frontend usa "Baixar Informativo", "Baixar Humanizado", "Baixar Dinâmico"
+    assert 'Baixar' in html

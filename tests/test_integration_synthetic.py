@@ -27,11 +27,11 @@ def gerar_video_sintetico(output_path, duracao=5, largura=640, altura=480):
 
 @pytest.fixture(scope="session")
 def video_sintetico():
-    """Fixture que gera um vídeo sintético temporário para os testes."""
+    """Fixture que gera um vídeo sintético temporário para os testes (10s)."""
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
         temp_path = f.name
     try:
-        gerar_video_sintetico(temp_path, duracao=5)
+        gerar_video_sintetico(temp_path, duracao=10)
         yield temp_path
     finally:
         if os.path.exists(temp_path):
@@ -98,7 +98,7 @@ def test_pipeline_duracao_curta(video_sintetico):
         response = client.post(
             "/processar",
             files={"file": ("sintetico.mp4", f, "video/mp4")},
-            data={"duracao_alvo": 3, "plataforma": "web", "texto_materia": "Corte curto"}
+            data={"duracao_alvo": 5, "plataforma": "web", "texto_materia": "Corte curto"}
         )
 
     assert response.status_code == 200
