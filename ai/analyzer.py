@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import requests
 from dotenv import load_dotenv
@@ -64,15 +64,20 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
         headers["Authorization"] = f"Bearer {os.getenv('OPENAI_API_KEY')}"
         
     try:
-        # Timeout de 5 minutos para LLMs locais
         response = requests.post(api_url, json=payload, headers=headers, timeout=300)
         response.raise_for_status()
         data = response.json()
         content = data.get("message", {}).get("content") if "ollama" in api_url else data.get("choices")[0].get("message", {}).get("content")
         content = content.replace("```json", "").replace("```", "").strip()
-        return json.loads(content)
+        parsed = json.loads(content)
+        
+        # Se o LLM retornar opções, mas todas vazias, força o fallback
+        if not parsed.get("opcoes") or all(len(o.get("cortes", [])) == 0 for o in parsed["opcoes"]):
+            raise ValueError("LLM retornou opções sem cortes válidos.")
+            
+        return parsed
     except Exception as e:
-        print(f"Erro ao chamar o LLM: {e}")
+        print(f"Erro ao chamar o LLM ou resposta inválida: {e}")
         print("Fallback: Gerando 3 opções baseadas no tempo alvo.")
         
         # Fallback Inteligente: Pega blocos até atingir o tempo alvo
@@ -82,7 +87,8 @@ def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, 
             cortes = []
             for b in blocos:
                 duracao_bloco = b[1] - b[0]
-                if tempo_acumulado + duracao_bloco <= duracao_alvo:
+                # Adiciona o bloco se couber OU se for o primeiro (para não ficar vazio)
+                if tempo_acumulado + duracao_bloco <= duracao_alvo or not cortes:
                     cortes.append({"start": b[0], "end": b[1]})
                     tempo_acumulado += duracao_bloco
                 if tempo_acumulado >= duracao_alvo * 0.9:

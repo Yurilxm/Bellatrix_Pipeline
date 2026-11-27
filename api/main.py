@@ -1,5 +1,5 @@
-﻿from fastapi import FastAPI, UploadFile, File, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
@@ -8,8 +8,13 @@ from core.cutter import get_video_metadata
 
 app = FastAPI(title="Bellatrix Pipeline API", version="1.3")
 
-# Monta a pasta atual para servir os vídeos para o frontend
+# Monta a pasta atual para servir os vídeos gerados
 app.mount("/static", StaticFiles(directory="."), name="static")
+
+@app.get("/")
+def read_root():
+    # Serve o frontend de teste
+    return FileResponse("frontend_teste.html")
 
 @app.get("/health")
 def health_check():
@@ -19,7 +24,7 @@ def health_check():
 async def processar_video(
     file: UploadFile = File(...), 
     duracao_alvo: int = Form(180), 
-    plataforma: str = Form("web"), # Mudamos o padrão para WEB para facilitar o teste no navegador
+    plataforma: str = Form("web"),
     texto_materia: str = Form(""),
     prompt_customizado: str = Form(""),
     programa: str = Form(""),
@@ -33,7 +38,6 @@ async def processar_video(
     
     try:
         resultados = executar_pipeline(temp_path, duracao_alvo, plataforma, texto_materia, prompt_customizado, contexto)
-        # Converte os caminhos absolutos para URLs acessíveis pelo frontend
         urls = [f"/static/{os.path.basename(r)}" for r in resultados]
         return JSONResponse(status_code=200, content={"status": "success", "arquivos": urls})
     except Exception as e:
