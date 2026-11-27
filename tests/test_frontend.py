@@ -1,34 +1,68 @@
-﻿import os
-from bs4 import BeautifulSoup
+﻿import pytest
+from fastapi.testclient import TestClient
+from api.main import app
 
-def test_frontend_html_exists():
-    """Verifica se o arquivo HTML do frontend foi criado."""
-    assert os.path.exists("frontend_teste.html")
+client = TestClient(app)
 
-def test_frontend_has_required_fields():
-    """Verifica se todos os campos de input e botões existem no HTML."""
-    with open("frontend_teste.html", "r", encoding="utf-8") as f:
-        soup = BeautifulSoup(f.read(), "html.parser")
-    
-    # Campos de input
-    assert soup.find("input", {"id": "videoFile"}) is not None, "Campo de vídeo não encontrado"
-    assert soup.find("input", {"id": "duracao"}) is not None, "Campo de duração não encontrado"
-    assert soup.find("textarea", {"id": "textoMateria"}) is not None, "Campo de texto da matéria não encontrado"
-    assert soup.find("select", {"id": "plataforma"}) is not None, "Select de plataforma não encontrado"
-    assert soup.find("input", {"id": "editoria"}) is not None, "Campo de editoria não encontrado"
-    assert soup.find("input", {"id": "promptRefazer"}) is not None, "Campo de refazer não encontrado"
-    
+
+def test_frontend_carrega():
+    """Testa se o frontend carrega (HTML válido)"""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    html = response.text
+    assert "Bellatrix Pipeline" in html
+    assert "Gerar 3 Opções com IA" in html
+
+
+def test_frontend_tem_campos_obrigatorios():
+    """Verifica se o HTML tem todos os campos do formulário"""
+    response = client.get("/")
+    html = response.text
+
+    # Campos do formulário
+    assert 'id="videoFile"' in html
+    assert 'id="duracao"' in html
+    assert 'id="plataforma"' in html
+    assert 'id="textoMateria"' in html
+    assert 'id="programa"' in html
+    assert 'id="editoria"' in html
+    assert 'id="promptRefazer"' in html
+
     # Botões
-    assert soup.find("button", {"id": "btnGerar"}) is not None, "Botão de Gerar não encontrado"
-    # O botão de refazer não tem ID, mas tem onclick="refazerOpcoes()"
-    assert soup.find("button", onclick="refazerOpcoes()") is not None, "Botão de Refazer não encontrado"
+    assert 'id="btnGerar"' in html
+    assert 'onclick="gerarOpcoes()"' in html
+    assert 'onclick="refazerOpcoes()"' in html
 
-def test_frontend_js_functions():
-    """Verifica se as funções JavaScript essenciais estão no código."""
-    with open("frontend_teste.html", "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    assert "async function chamarAPI" in content, "Função chamarAPI não encontrada"
-    assert "function renderizarVideos" in content, "Função renderizarVideos não encontrada"
-    assert "function gerarOpcoes" in content, "Função gerarOpcoes não encontrada"
-    assert "function refazerOpcoes" in content, "Função refazerOpcoes não encontrada"
+    # Seções
+    assert 'id="form-section"' in html
+    assert 'id="loading-section"' in html
+    assert 'id="results-section"' in html
+    assert 'id="video-grid"' in html
+
+
+def test_frontend_api_url_relativa():
+    """Verifica se a API_URL usa caminho relativo (não hardcoded localhost)"""
+    response = client.get("/")
+    html = response.text
+    # Não deve ter localhost hardcoded
+    assert "localhost:8012" not in html
+    # Deve usar /processar relativo
+    assert '"/processar"' in html or "'/processar'" in html
+
+
+def test_frontend_tem_nomes_opcoes():
+    """Verifica se os nomes das 3 opções aparecem no JS"""
+    response = client.get("/")
+    html = response.text
+    assert "Informativo" in html
+    assert "Humanizado" in html
+    assert "Dinâmico" in html
+
+
+def test_frontend_tem_download_links():
+    """Verifica se há links de download para os vídeos"""
+    response = client.get("/")
+    html = response.text
+    assert 'download' in html
+    assert 'Baixar Vídeo' in html

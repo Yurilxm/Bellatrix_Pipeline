@@ -7,10 +7,10 @@ load_dotenv()
 
 def analisar_e_selecionar(blocos, srt_path, texto_materia="", duracao_alvo=180, prompt_customizado="", contexto_editorial=""):
     print(f"Lendo transcrição e enviando para o LLM (Gerando 3 Opções)...")
-    
+
     with open(srt_path, "r", encoding="utf-8") as f:
         transcricao_completa = f.read()
-        
+
     instrucao_extra = ""
     if prompt_customizado:
         instrucao_extra = f"""
@@ -18,16 +18,25 @@ ATENÇÃO DO EDITOR: Gere as opções focando especificamente em: {prompt_custom
 Isso substitui as 3 opções padrão. Gere 3 variações dentro deste foco específico."""
 
     # Alinhamento com IRIS: Anti-alucinação, vocabulário editorial, coerência
+    # Cartilha de Edição: papéis editoriais (locução/OFF, passagem repórter, sonoras, cobertura/ilustração, sobe som)
     prompt = f"""
-Você é um editor de vídeo sênior de uma emissora de TV regional (InterTV). Está alinhado ao sistema IRIS de análise jornalística.
+Você é um editor de vídeo sênior de uma emissora de TV regional (InterTV). Está alinhado ao sistema IRIS de análise jornalística e à Cartilha de Edição de Reportagem.
 
-REGRAS OBRIGATÓRIAS (guardrails do IRIS):
+REGRAS OBRIGATÓRIAS (guardrails do IRIS + Cartilha):
 1. NÃO INFIRA o que não está explícito na transcrição ou no texto da matéria.
 2. Separe FATOS OBJETIVOS (o que foi dito) de CARGA EMOCIONAL (tom do depoimento).
 3. NÃO invente nomes, números, locais ou declarações.
 4. Respeite a coerência entre a gravidade do fato e o tom da edição (não use cortes alegres para tragédias).
 5. NUNCA proponha cortar depoimentos de vítimas, menores de idade ou pessoas que não podem falar.
-6. Priorize as falas que realmente importam para a matéria (voz A1 — locução do repórter e sonoras).
+6. Identifique e priorize trechos conforme seu papel editorial na reportagem:
+   - LOCOÇÃO / OFF: narração do repórter (voz guia, conduz a narrativa)
+   - PASSAGEM DE REPÓRTER: repórter em cena (ponte, contextualização)
+   - SONORAS / ENTREVISTAS: depoimentos de fontes, personagens (voz A1)
+   - IMAGENS DE COBERTURA / ILUSTRAÇÃO: b-roll, arquivos, cenas de apoio (sem áudio principal)
+   - SOBE SOM / AMBIENTE: momentos de som ambiente natural (ruas, natureza, eventos) sem narração
+7. A SOMA dos cortes de cada opção deve ser próxima de {duracao_alvo} segundos.
+8. Não corte no meio de uma frase.
+9. Respeite os limites dos blocos disponíveis.
 
 CONTEXTO EDITORIAL: {contexto_editorial}
 TEXTO DA MATÉRIA (o que o repórter quer contar):
@@ -41,20 +50,22 @@ BLOCOS DE VÍDEO DISPONÍVEIS (duração e fades):
 
 SUA TAREFA: Gerar 3 OPÇÕES DE EDIÇÃO DIFERENTES, alinhadas aos ângulos editoriais do IRIS, cada uma com aproximadamente {duracao_alvo} segundos.
 
-OPÇÃO 1 — INFORMATIVO (fatos diretos, objetividade):
-- Foque nas informações factuais, no que aconteceu, onde, quando, quem.
+OPÇÃO 1 — INFORMATIVO (fatos diretos, objetividade, telejornalismo padrão):
+- Priorize: LOCOÇÃO/OFF + PASSAGEM DE REPÓRTER + SONORAS factuais (confirmação de fatos)
 - Ritmo de telejornal: claro, direto, sem sensacionalismo.
-- Priorize a locução do repórter (off) e sonoras que confirmam fatos.
+- Use IMAGENS DE COBERTURA apenas para ilustrar fatos citados na locução.
 
 OPÇÃO 2 — HUMANIZADO (pessoas, emoção, histórias humanas):
-- Foque nos depoimentos que trazem sentimento (sent_*: solidariedade, esperança, dor, superação).
-- Mantenha a coerência: se a matéria é sobre tragédia, o tom é sóbrio (não celebratório).
-- Priorize sonoras de pessoas afetadas, moradores, vítimas (com cuidado ético).
+- Priorize: SONORAS/ENTREVISTAS com carga emocional (sent_*: solidariedade, esperança, dor, superação)
+- Mantenha coerência: se tragédia, tom sóbrio (não celebratório).
+- LOCOÇÃO/OFF serve apenas para conectar depoimentos; dê tempo ao "sobe som" de ambientes emocionais.
+- Cuidado ético com vítimas, menores, pessoas que não podem falar.
 
-OPÇÃO 3 — DINÂMICO (ação, movimento, ritmo):
-- Foque em cenas com movimento, ação, cortes mais rápidos.
-- Ideal para matérias de esporte, operações policiais, resgates, obras.
-- Priorize trechos com ação visual e sonoras curtas e impactantes.
+OPÇÃO 3 — DINÂMICO (ação, movimento, ritmo visual):
+- Priorize: IMAGENS DE COBERTURA/ILUSTRAÇÃO com movimento + SOBE SOM de ambiente + SONORAS curtas e impactantes
+- Ideal para: esporte, operações policiais, resgates, obras, eventos com ação visual.
+- LOCOÇÃO/OFF mínima; edição baseada em ritmo visual e sonoro.
+- Cortes mais rápidos, transições por ação/movimento.
 {instrucao_extra}
 
 FORMATO DE RETORNO (APENAS JSON válido, sem markdown):
@@ -70,6 +81,7 @@ Regras finais:
 - A SOMA dos cortes de cada opção deve ser próxima de {duracao_alvo} segundos.
 - Não corte no meio de uma frase.
 - Respeite os limites dos blocos disponíveis.
+- Cada opção deve refletir seu ângulo editorial na escolha e ordenação dos papéis (locução, sonora, cobertura, sobe som).
 """
     
     api_url = os.getenv("LLM_API_URL", "http://localhost:11434/api/chat")

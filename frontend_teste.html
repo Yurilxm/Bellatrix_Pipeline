@@ -73,7 +73,8 @@
     </div>
 
     <script>
-        const API_URL = "http://localhost:8012/processar";
+        // Usa URL relativa para funcionar em qualquer host (localhost, IP da VM, etc.)
+        const API_URL = "/processar";
 
         async function chamarAPI(promptCustom = "") {
             const fileInput = document.getElementById('videoFile');

@@ -16,11 +16,14 @@ services:
       WHISPER_MODEL: ${WHISPER_MODEL:-medium}
       # Garante que pywhispercpp use CPU
       GGML_CPU_ALL: "1"
+      # Pasta para arquivos gerados (servidos via /output)
+      OUTPUT_DIR: /app/output
     ports:
       - "127.0.0.1:8012:8012"
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      - ./output:/app/output
     networks:
       - default
 
